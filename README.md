@@ -30,6 +30,16 @@ A simple desktop/mobile downloader for YouTube audio (MP3) and video (MP4), plus
 Установка: распакуйте архив → `chrome://extensions` → «Режим разработчика» → «Загрузить распакованное расширение».
 Связь идёт только через `127.0.0.1:47653`, принимаются лишь запросы от расширений Chrome и только ссылки YouTube.
 
+## Веб-версия
+Тот же интерфейс в браузере: `web/server.py` (только стандартная библиотека + yt-dlp + ffmpeg).
+```
+pip install yt-dlp imageio-ffmpeg
+python web/server.py --port 8080        # http://127.0.0.1:8080
+```
+или Docker: `docker build -f web/Dockerfile -t ytdl-web . && docker run -p 8080:8080 ytdl-web`.
+У каждого посетителя своя сессия, файлы живут на сервере 30 минут и удаляются. Принимаются только ссылки YouTube, без плейлистов, не длиннее 3 часов, не больше 3 загрузок одновременно на сервере и 20 в час с одного IP.
+Учтите: YouTube часто блокирует IP дата-центров, на домашнем интернете работает стабильнее.
+
 ## Сборка из исходников
 - Windows: `pip install yt-dlp imageio-ffmpeg pyinstaller pywebview`, затем `pyinstaller "windows/YouTube Downloader.spec"` и Inno Setup (`windows/ytdl.iss`).
 - macOS: `./build_macos.sh` (в репозитории настроен GitHub Actions).
