@@ -17,7 +17,7 @@ A simple desktop/mobile downloader for YouTube audio (MP3) and video (MP4), plus
 | macOS (Apple Silicon) | `YouTube-Downloader-AppleSilicon.dmg` |
 | macOS (Intel) | `YouTube-Downloader-Intel.dmg` |
 | Android 8+ (arm64) | `YouTube-Downloader-Android.apk` |
-| Chrome | `YouTube-Downloader-Chrome-extension.zip` |
+| Chrome | `YouTube-Downloader-Chrome-Extension-Setup.exe` (Windows) или `YouTube-Downloader-Chrome-extension.zip` |
 
 ### Предупреждения при установке
 Приложения не подписаны сертификатом разработчика, поэтому системы предупреждают:

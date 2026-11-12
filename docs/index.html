@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>YouTube Downloader — MP3 и MP4 без лишнего</title>
+<meta name="description" content="Простая программа для скачивания аудио MP3 и видео MP4 с YouTube. Windows, macOS, Android и расширение для Chrome. Без рекламы и аккаунтов.">
+<link rel="icon" href="icon.png">
+<style>
+@font-face { font-family: "Manrope"; src: url("fonts/manrope.ttf") format("truetype"); font-weight: 200 800; font-display: swap; }
+@font-face { font-family: "Unbounded"; src: url("fonts/unbounded.ttf") format("truetype"); font-weight: 200 900; font-display: swap; }
+:root { --bg:#07060F; --glass:rgba(24,21,50,.62); --line:rgba(255,255,255,.1); --hi:#F6F4FF; --mid:#B7B2D3; --low:#7D789C;
+  --indigo:#5B5BF7; --violet:#8B5CF6; --pink:#FF4D9D; --coral:#FF6B4A; --mint:#34D399; }
+* { box-sizing:border-box; margin:0; }
+html { scroll-behavior:smooth; }
+body { background:var(--bg); color:var(--hi); font:500 16px/1.6 "Manrope",system-ui,sans-serif; min-height:100vh; overflow-x:hidden; }
+.aurora { position:fixed; inset:0; z-index:0; pointer-events:none; overflow:hidden; }
+.aurora i { position:absolute; border-radius:50%; filter:blur(90px); opacity:.5; }
+.aurora i:nth-child(1){ width:560px;height:560px;left:-140px;top:-120px;background:#4b3fe0 }
+.aurora i:nth-child(2){ width:520px;height:520px;right:-120px;top:120px;background:#b23a9c }
+.aurora i:nth-child(3){ width:480px;height:480px;left:30%;bottom:-200px;background:#2a5bd7;opacity:.35 }
+.wrap { position:relative; z-index:1; max-width:1080px; margin:0 auto; padding:0 22px 60px; }
+nav { display:flex; align-items:center; gap:12px; padding:22px 0; }
+nav img { width:40px; height:40px; border-radius:12px; }
+nav b { font:700 15px "Unbounded",sans-serif; letter-spacing:.2px; }
+nav a.link { margin-left:auto; color:var(--mid); text-decoration:none; font-weight:600; }
+nav a.link:hover { color:var(--hi); }
+.hero { display:grid; grid-template-columns:1.05fr 1fr; gap:34px; align-items:center; padding:30px 0 40px; }
+h1 { font:800 clamp(30px,4.6vw,50px)/1.1 "Unbounded",sans-serif; letter-spacing:-.5px; }
+h1 span { background:linear-gradient(120deg,var(--indigo),var(--violet) 45%,var(--pink)); -webkit-background-clip:text; background-clip:text; color:transparent; }
+.lead { color:var(--mid); font-size:18px; margin:18px 0 26px; max-width:520px; }
+.btn { display:inline-flex; align-items:center; gap:10px; padding:15px 24px; border-radius:16px; font-weight:800; color:#fff; text-decoration:none;
+  background:linear-gradient(120deg,var(--indigo),var(--violet) 50%,var(--pink)); box-shadow:0 10px 34px rgba(139,92,246,.45); transition:.2s; border:0; cursor:pointer; font-size:16px; font-family:inherit; }
+.btn:hover { transform:translateY(-2px); filter:brightness(1.08); }
+.btn.ghost { background:var(--glass); box-shadow:none; border:1px solid var(--line); backdrop-filter:blur(14px); }
+.btn small { font-weight:600; opacity:.8; }
+.shot { border-radius:22px; border:1px solid var(--line); box-shadow:0 30px 80px rgba(0,0,0,.55),0 0 80px rgba(139,92,246,.25); width:100%; display:block; }
+h2 { font:800 clamp(22px,3vw,30px)/1.2 "Unbounded",sans-serif; margin:54px 0 8px; }
+.sub { color:var(--mid); margin-bottom:24px; max-width:640px; }
+.grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(230px,1fr)); gap:16px; }
+.card { background:var(--glass); border:1px solid var(--line); border-radius:22px; padding:22px; backdrop-filter:blur(16px); display:flex; flex-direction:column; gap:10px; }
+.card.rec { border-color:rgba(139,92,246,.7); box-shadow:0 0 0 1px rgba(139,92,246,.4),0 18px 50px rgba(139,92,246,.25); }
+.card h3 { font:700 17px "Unbounded",sans-serif; }
+.card p { color:var(--mid); font-size:14.5px; flex:1; }
+.tag { align-self:flex-start; font-size:12px; font-weight:800; padding:3px 10px; border-radius:99px; background:rgba(52,211,153,.16); color:var(--mint); }
+.feat { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:16px; }
+.feat .card h3 { font-size:15px; }
+ol.steps { counter-reset:s; list-style:none; padding:0; display:grid; gap:12px; max-width:720px; }
+ol.steps li { counter-increment:s; background:var(--glass); border:1px solid var(--line); border-radius:18px; padding:14px 18px 14px 62px; position:relative; color:var(--mid); }
+ol.steps li::before { content:counter(s); position:absolute; left:16px; top:50%; transform:translateY(-50%); width:32px; height:32px; border-radius:50%;
+  display:grid; place-items:center; font:800 14px "Unbounded",sans-serif; color:#fff; background:linear-gradient(135deg,var(--indigo),var(--pink)); }
+ol.steps b { color:var(--hi); }
+code { background:rgba(255,255,255,.08); padding:2px 7px; border-radius:7px; font-size:13.5px; }
+details { background:var(--glass); border:1px solid var(--line); border-radius:16px; padding:14px 18px; margin-bottom:10px; }
+summary { cursor:pointer; font-weight:700; }
+details p { color:var(--mid); margin-top:8px; font-size:15px; }
+footer { color:var(--low); font-size:13.5px; margin-top:56px; border-top:1px solid var(--line); padding-top:22px; }
+footer a { color:var(--mid); }
+@media (max-width:820px){ .hero{ grid-template-columns:1fr } }
+</style>
+</head>
+<body>
+<div class="aurora"><i></i><i></i><i></i></div>
+<div class="wrap">
+  <nav><img src="icon.png" alt=""><b>YouTube Downloader</b><a class="link" href="https://github.com/downloada2/youtube-downloader">GitHub</a></nav>
+
+  <section class="hero">
+    <div>
+      <h1>Звук и видео с YouTube — <span>без лишнего</span></h1>
+      <p class="lead">Вставьте ссылку и получите MP3 до 320 кбит/с или MP4 до 1080p и выше. Без рекламы, без регистрации, всё работает на вашем устройстве.</p>
+      <a class="btn" id="mainBtn" href="#download"><span id="mainText">Скачать</span> <small id="mainSub"></small></a>
+      <a class="btn ghost" href="#chrome" style="margin-left:8px">Расширение для Chrome</a>
+    </div>
+    <img class="shot" src="screenshot.png" alt="Окно программы YouTube Downloader">
+  </section>
+
+  <h2 id="download">Скачать</h2>
+  <p class="sub">Выберите свою систему. Приложения не подписаны сертификатом, поэтому система один раз спросит подтверждение — <a href="#faq" style="color:var(--mid)">как это обойти</a>.</p>
+  <div class="grid" id="cards">
+    <div class="card" data-os="win"><span class="tag" hidden>Для вашей системы</span><h3>Windows</h3><p>Windows 10 и 11, 64-бит. Обычный установщик со значком на рабочем столе.</p>
+      <a class="btn" href="https://github.com/downloada2/youtube-downloader/releases/latest/download/YouTube-Downloader-Setup-Windows.exe">Скачать .exe <small>50 МБ</small></a></div>
+    <div class="card" data-os="mac"><span class="tag" hidden>Для вашей системы</span><h3>macOS</h3><p>Apple Silicon (M1 и новее) или Intel. Образ .dmg: перетащите программу в «Программы».</p>
+      <a class="btn" href="https://github.com/downloada2/youtube-downloader/releases/latest/download/YouTube-Downloader-AppleSilicon.dmg">Apple Silicon <small>56 МБ</small></a>
+      <a class="btn ghost" href="https://github.com/downloada2/youtube-downloader/releases/latest/download/YouTube-Downloader-Intel.dmg">Intel <small>64 МБ</small></a></div>
+    <div class="card" data-os="android"><span class="tag" hidden>Для вашей системы</span><h3>Android</h3><p>Android 8 и новее (arm64). Файл .apk: разрешите установку из неизвестных источников.</p>
+      <a class="btn" href="https://github.com/downloada2/youtube-downloader/releases/latest/download/YouTube-Downloader-Android.apk">Скачать .apk <small>102 МБ</small></a></div>
+  </div>
+
+  <h2 id="chrome">Расширение для Chrome</h2>
+  <p class="sub">Кнопки «MP3» и «MP4» прямо на странице видео YouTube. Расширение отправляет ссылку в программу на вашем компьютере, поэтому программа должна быть запущена.</p>
+  <div class="grid" style="margin-bottom:22px">
+    <div class="card rec"><h3>Установщик для Windows</h3><p>Копирует расширение в папку, открывает <code>chrome://extensions</code> и показывает шаги.</p>
+      <a class="btn" href="https://github.com/downloada2/youtube-downloader/releases/latest/download/YouTube-Downloader-Chrome-Extension-Setup.exe">Скачать установщик <small>2 МБ</small></a></div>
+    <div class="card"><h3>Архив (любая система)</h3><p>Для Mac, Linux и ручной установки: распакуйте и загрузите папку в Chrome.</p>
+      <a class="btn ghost" href="https://github.com/downloada2/youtube-downloader/releases/latest/download/YouTube-Downloader-Chrome-extension.zip">Скачать .zip <small>20 КБ</small></a></div>
+  </div>
+  <ol class="steps">
+    <li><b>Запустите установщик</b> (или распакуйте архив в постоянную папку).</li>
+    <li>В Chrome откройте <code>chrome://extensions</code> и включите <b>«Режим разработчика»</b> справа вверху.</li>
+    <li>Нажмите <b>«Загрузить распакованное расширение»</b> и выберите папку с расширением.</li>
+    <li>Откройте любое видео на YouTube — внизу справа появятся кнопки <b>⬇ MP3</b> и <b>⬇ MP4</b>.</li>
+  </ol>
+  <p class="sub" style="margin-top:14px;font-size:14px">Расширение нет в Chrome Web Store: магазин не принимает программы для скачивания с YouTube. Поэтому установка ручная, а Chrome может изредка напоминать об «отключении расширений для разработчиков».</p>
+
+  <h2>Что внутри</h2>
+  <div class="feat" style="margin-top:18px">
+    <div class="card"><h3>MP3 до 320 кбит/с</h3><p>Чистое аудио с обложкой и названием трека.</p></div>
+    <div class="card"><h3>MP4 до 1080p и выше</h3><p>Выбор качества от 360p до лучшего доступного.</p></div>
+    <div class="card"><h3>Плейлисты</h3><p>Целый плейлист одним нажатием (в приложениях для компьютера).</p></div>
+    <div class="card"><h3>Тёмная и светлая темы</h3><p>Современный интерфейс, одинаковый на всех системах.</p></div>
+    <div class="card"><h3>Без аккаунтов и рекламы</h3><p>Всё работает локально на вашем устройстве.</p></div>
+    <div class="card"><h3>Открытый код</h3><p>Движок yt-dlp и ffmpeg, исходники на GitHub (MIT).</p></div>
+  </div>
+
+  <h2 id="faq">Вопросы</h2>
+  <div style="margin-top:18px">
+    <details><summary>Windows пишет «Windows защитила ваш компьютер»</summary><p>Это стандартное окно SmartScreen для программ без платного сертификата. Нажмите «Подробнее» → «Выполнить в любом случае».</p></details>
+    <details><summary>macOS не открывает программу («неизвестный разработчик»)</summary><p>Правый клик по программе → «Открыть» → ещё раз «Открыть». Достаточно один раз.</p></details>
+    <details><summary>Android не даёт установить .apk</summary><p>В настройках разрешите браузеру или файловому менеджеру «Установку неизвестных приложений», затем откройте файл снова.</p></details>
+    <details><summary>Скачивание перестало работать</summary><p>YouTube периодически меняет защиту. Скачайте свежую версию программы из раздела выше: в неё включён актуальный yt-dlp.</p></details>
+    <details><summary>Есть ли веб-версия?</summary><p>Код сервера лежит в репозитории (папка <code>web</code>), его можно запустить у себя командой или через Docker. Публичного сервера нет: YouTube блокирует дата-центры.</p></details>
+  </div>
+
+  <footer>
+    Скачивайте только то, на что у вас есть права. Использование программы может нарушать условия сервиса YouTube, ответственность за использование лежит на пользователе.
+    Проект не связан с YouTube и Google. <a href="https://github.com/downloada2/youtube-downloader">Исходный код</a> · лицензия MIT.
+  </footer>
+</div>
+<script>
+(() => {
+  const ua = navigator.userAgent, p = navigator.platform || "";
+  const os = /Android/i.test(ua) ? "android" : /iPhone|iPad/i.test(ua) ? "ios" : /Mac/i.test(p) ? "mac" : /Win/i.test(p) ? "win" : "other";
+  const names = { win: ["Скачать для Windows", "50 МБ"], mac: ["Скачать для macOS", "56 МБ"], android: ["Скачать для Android", "102 МБ"] };
+  const card = document.querySelector(`.card[data-os="${os}"]`);
+  if (card) {
+    card.classList.add("rec"); card.querySelector(".tag").hidden = false;
+    document.getElementById("cards").prepend(card);
+    const [t, s] = names[os];
+    document.getElementById("mainText").textContent = t; document.getElementById("mainSub").textContent = s;
+    document.getElementById("mainBtn").href = card.querySelector("a.btn").href;
+  }
+})();
+</script>
+</body>
+</html>
