@@ -13,10 +13,10 @@ A simple desktop/mobile downloader for YouTube audio (MP3) and video (MP4), plus
 
 | Платформа | Файл |
 |---|---|
-| Windows 10/11 | `YouTube Downloader Setup (Windows).exe` |
+| Windows 10/11 | `YouTube-Downloader-Setup-Windows.exe` |
 | macOS (Apple Silicon) | `YouTube-Downloader-AppleSilicon.dmg` |
 | macOS (Intel) | `YouTube-Downloader-Intel.dmg` |
-| Android 8+ (arm64) | `YouTube Downloader (Android).apk` |
+| Android 8+ (arm64) | `YouTube-Downloader-Android.apk` |
 | Chrome | `YouTube-Downloader-Chrome-extension.zip` |
 
 ### Предупреждения при установке
