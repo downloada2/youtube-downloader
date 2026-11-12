@@ -1,0 +1,57 @@
+name: Build macOS app
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: macos-latest        # Apple Silicon (arm64)
+            arch: AppleSilicon
+          - runner: macos-15-intel      # Intel (x86_64)
+            arch: Intel
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Build .app and .dmg
+        run: |
+          chmod +x build_macos.sh
+          ./build_macos.sh
+      - name: Rename dmg
+        run: mv "dist/YouTube Downloader.dmg" "dist/YouTube-Downloader-${{ matrix.arch }}.dmg"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: YouTube-Downloader-${{ matrix.arch }}
+          path: dist/YouTube-Downloader-${{ matrix.arch }}.dmg
+
+      # ---- smoke tests on the built .app (the dmg above is already saved) ----
+      - name: Bundled ffmpeg runs
+        run: '"dist/YouTube Downloader.app/Contents/MacOS/YouTube Downloader" --selftest-ffmpeg'
+      - name: Window opens, page + fonts + JS bridge load
+        continue-on-error: true
+        run: |
+          rm -f /tmp/smoke.txt
+          YTDL_SMOKE=/tmp/smoke.txt "dist/YouTube Downloader.app/Contents/MacOS/YouTube Downloader" &
+          APP=$!
+          sleep 7
+          screencapture -x /tmp/shot.png || true
+          for i in $(seq 1 40); do [ -f /tmp/smoke.txt ] && break; sleep 1; done
+          kill $APP 2>/dev/null || true
+          echo "smoke result:"; cat /tmp/smoke.txt
+          grep -q '"api":true' /tmp/smoke.txt
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: smoke-${{ matrix.arch }}
+          path: |
+            /tmp/smoke.txt
+            /tmp/shot.png
+          if-no-files-found: ignore
