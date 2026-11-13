@@ -359,7 +359,21 @@ function renderJob(j) {
     const spin = j.stage === "connect" || j.stage === "convert";
     const stage = j.stage === "connect" ? "Подключение к YouTube…" :
       j.stage === "convert" ? "Обработка (ffmpeg)…" : `Скачивание… ${Math.round((j.pct || 0) * 100)}%${j.detail ? " · " + j.detail : ""}`;
-    box.innerHTML = `<div class="glass job">${ring(j.pct || 0, spin)}<div class="job-info"><div class="job-name">${esc(j.title || "Загрузка")}</div><div class="job-stage">${stage}</div><div class="bar"><i style="width:${Math.round((j.pct || 0) * 100)}%"></i></div></div><button class="btn btn-glass btn-sm" id="btnCancel">Отменить</button></div>`;
+    const live = box.querySelector(".job.live");
+    if (live && live.dataset.spin === String(spin)) {
+      // update in place: rebuilding the card every poll restarts animations and makes the text flicker
+      const name = esc(j.title || "Загрузка");
+      const nm = live.querySelector(".job-name"); if (nm.innerHTML !== name) nm.innerHTML = name;
+      const st = live.querySelector(".job-stage"); if (st.innerHTML !== stage) st.innerHTML = stage;
+      live.querySelector(".bar i").style.width = Math.round((j.pct || 0) * 100) + "%";
+      if (!spin) {
+        const C = 2 * Math.PI * 28, circles = live.querySelectorAll(".ring circle");
+        circles[1].setAttribute("stroke-dashoffset", C * (1 - Math.min(1, Math.max(0, j.pct || 0))));
+        const pc = live.querySelector(".pct"); if (pc) pc.textContent = Math.round((j.pct || 0) * 100);
+      }
+      return;
+    }
+    box.innerHTML = `<div class="glass job live" data-spin="${spin}">${ring(j.pct || 0, spin)}<div class="job-info"><div class="job-name">${esc(j.title || "Загрузка")}</div><div class="job-stage">${stage}</div><div class="bar"><i style="width:${Math.round((j.pct || 0) * 100)}%"></i></div></div><button class="btn btn-glass btn-sm" id="btnCancel">Отменить</button></div>`;
     $("#btnCancel").onclick = () => api.cancel();
   }
 }
