@@ -1,5 +1,5 @@
 ﻿#define MyAppName "YouTube Downloader для Chrome"
-#define MyAppVersion "1.0.0"
+#define MyAppVersion "1.0.1"
 
 [Setup]
 AppId={{7B2E5C10-3D6A-4E88-9F41-0A1C2B3D4E5F}
