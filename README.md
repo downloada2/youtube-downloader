@@ -3,7 +3,9 @@
 Простая программа для скачивания аудио (MP3) и видео (MP4) с YouTube. Windows, macOS, Android и расширение для Chrome.
 A simple desktop/mobile downloader for YouTube audio (MP3) and video (MP4), plus a Chrome extension.
 
-- Два режима: **Аудио MP3** (128–320 kbps) и **Видео MP4** (до максимального качества), плейлисты, отмена, история.
+- Два режима: **Аудио MP3** (128–320 kbps, обложка и теги) и **Видео MP4** (до максимального качества), плейлисты, отмена, история.
+- Очередь загрузок, фрагмент по времени, субтитры .srt, интерфейс RU/EN.
+- Движок yt-dlp обновляется автоматически, программа сообщает о новой версии.
 - Тёмная и светлая темы, без рекламы и аккаунтов, всё работает локально.
 - Движок: [yt-dlp](https://github.com/yt-dlp/yt-dlp) + ffmpeg.
 
@@ -16,7 +18,7 @@ A simple desktop/mobile downloader for YouTube audio (MP3) and video (MP4), plus
 | Windows 10/11 | `YouTube-Downloader-Setup-Windows.exe` |
 | macOS (Apple Silicon) | `YouTube-Downloader-AppleSilicon.dmg` |
 | macOS (Intel) | `YouTube-Downloader-Intel.dmg` |
-| Android 8+ (arm64) | `YouTube-Downloader-Android.apk` |
+| Android 10+ | `YouTube-Downloader-Android.apk` (arm64), `-armv7.apk` (старые 32-бит), `-x86_64.apk` |
 | Chrome | `YouTube-Downloader-Chrome-Extension-Setup.exe` (Windows) или `YouTube-Downloader-Chrome-extension.zip` |
 
 ### Предупреждения при установке
