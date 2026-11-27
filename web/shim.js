@@ -16,18 +16,14 @@
     api: {
       get_state: call("get_state"), set_theme: call("set_theme"), set_mode: call("set_mode"),
       start: call("start"), cancel: call("cancel"), poll: call("poll"), clear_history: call("clear_history"),
+      set_lang: call("set_lang"), set_subs: call("set_subs"), check_update: call("check_update"), clear_queue: call("clear_queue"),
+      open_url: async () => {},
       paste: async () => { try { return (await navigator.clipboard.readText()).trim(); } catch (e) { return ""; } },
       pick_folder: async () => null, open_folder: async () => {}, exit_app: async () => {},
       reveal: async (p) => save(p), open_file: async (p) => save(p),
     },
   };
   document.addEventListener("DOMContentLoaded", () => {
-    const hide = (el) => el && (el.style.display = "none");
-    const out = document.getElementById("outdir");
-    hide(out && out.parentElement.parentElement);              // "Папка сохранения"
-    hide(document.getElementById("btnOpenDir"));
-    hide(document.getElementById("plRow"));                    // плейлисты только в приложении
-    document.querySelectorAll(".hist-head .btn-sm").forEach(hide);
     window.dispatchEvent(new Event("pywebviewready"));
   });
 })();

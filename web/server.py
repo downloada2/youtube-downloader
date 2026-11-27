@@ -32,7 +32,8 @@ SID_RE = re.compile(r"^[0-9a-f]{32}$")
 KEEP_SECONDS = 30 * 60          # finished files / idle sessions are deleted after this
 MAX_RUNNING = 3                 # simultaneous downloads on the whole server
 MAX_STARTS_PER_HOUR = 20        # per client IP
-MAX_DURATION = 3 * 3600         # refuse videos longer than 3 h and live streams
+MAX_DURATION = 3 * 3600
+MAX_QUEUE = 5                   # queued links per visitor         # refuse videos longer than 3 h and live streams
 
 _orig_build_opts = core.build_opts
 
@@ -64,15 +65,14 @@ class WebApi(core.Api):
         self._window = None
         self._lock = threading.Lock()
         self._cfg = {}
-        self._job = {"state": "idle"}
-        self._cancel = False
         self._history = []
         self._exit_ok = False
+        self._update = {}
+        self._init_jobs()
         self.sid = sid
         self.dir = WORK / sid
         self.files = {}
         self.seen = time.time()
-        self.starts = []
 
     def _save(self):
         pass
@@ -91,11 +91,16 @@ class WebApi(core.Api):
         st.update(platform="web", history=self._hist(), dirs={"audio": "", "video": ""})
         return st
 
+    def check_update(self):
+        return {}
+
     def poll(self):
-        j = super().poll()
-        if j.get("state") == "done":
-            j = dict(j, history=self._hist(), path=self._url(j["path"]) if j.get("path") else "")
-        return j
+        r = super().poll()
+        for e in r["events"]:
+            if e.get("state") == "done":
+                e["history"] = self._hist()
+                e["path"] = self._url(e["path"]) if e.get("path") and Path(e["path"]).is_file() else ""
+        return r
 
     def clear_history(self):
         for h in self._history:
@@ -215,32 +220,40 @@ class H(BaseHTTPRequestHandler):
         except ValueError:
             return self._json({"error": "bad_json"}, 400)
         s, name = session(sid), m.group(1)
-        if name in ("get_state", "set_theme", "set_mode", "cancel", "poll", "clear_history"):
+        if name in ("get_state", "set_theme", "set_mode", "set_lang", "set_subs", "check_update", "cancel", "poll",
+                    "clear_history", "clear_queue"):
             return self._json(getattr(s, name)(*args))
         if name == "start":
             return self._json(self._start(s, args))
         self._json({"error": "unknown"}, 404)
 
     def _start(self, s, args):
-        url, mode, quality = (args + ["", "audio", ""])[:3]
+        url, mode, quality, _pl, _dir, extra = (list(args) + ["", "audio", "", False, "", {}])[:6]
         url = str(url).strip()
         if not is_youtube(url):
-            return {"ok": False, "error": "Принимаются только ссылки на YouTube"}
+            return {"ok": False, "error": "only_youtube"}
         mode = "video" if mode == "video" else "audio"
         allowed = core.VIDEO_Q if mode == "video" else core.AUDIO_Q
         quality = quality if quality in allowed else allowed[0]
+        extra = extra if isinstance(extra, dict) else {}
+        extra = {"subs": bool(extra.get("subs")), "start": str(extra.get("start", ""))[:12], "end": str(extra.get("end", ""))[:12]}
+        try:
+            core.parse_time(extra["start"]); core.parse_time(extra["end"])
+        except ValueError:
+            return {"ok": False, "error": "bad_url"}
         now = time.time()
-        s.starts = [t for t in s.starts if now - t < 3600]
         ip = self._client_ip()
         with SLOCK:
             hits = [t for t in IP_STARTS.get(ip, []) if now - t < 3600]
             if len(hits) >= MAX_STARTS_PER_HOUR:
-                return {"ok": False, "error": "Слишком много загрузок за час, попробуйте позже"}
+                return {"ok": False, "error": "rate"}
+            if len(s._queue) >= MAX_QUEUE:
+                return {"ok": False, "error": "queue_full"}
             IP_STARTS[ip] = hits + [now]
-        if running_count() >= MAX_RUNNING:
-            return {"ok": False, "error": "Сервер занят, попробуйте через минуту"}
+        if running_count() >= MAX_RUNNING and s._job.get("state") != "running":
+            return {"ok": False, "error": "server_busy"}
         s.dir.mkdir(parents=True, exist_ok=True)
-        return core.Api.start(s, url, mode, quality, False, str(s.dir))
+        return core.Api.start(s, url, mode, quality, False, str(s.dir), extra)
 
 
 IP_STARTS = {}

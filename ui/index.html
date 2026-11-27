@@ -205,6 +205,22 @@ body.m-video .stack .slab:nth-child(1) { --c: var(--pink); } body.m-video .stack
 body.busy .aurora i, body.busy .stack .slab { animation-play-state: paused; }
 body.busy .glass { backdrop-filter: none; -webkit-backdrop-filter: none; }
 @media (max-width: 1040px) { .home { grid-template-columns: 1fr; overflow-y: auto; align-content: start; } .col, .col.left { overflow: visible; min-height: auto; } .scroll { overflow: visible; flex: none; margin-right: 0; padding-right: 0; } .hist { flex: none; min-height: 320px; } }
+
+/* ---------- 3.1: update badge, clip, queue ---------- */
+.upd { margin-right: 10px; padding: 8px 14px; border-radius: 12px; font-weight: 800; font-size: 13px; color: #fff; background: linear-gradient(100deg, #10b981, #22d3ee); box-shadow: 0 6px 18px -6px rgba(16,185,129,.8); }
+.upd[hidden] { display: none; }
+#lang { margin-right: 10px; }
+#lang button { padding: 8px 11px; }
+.row.trim .field { flex: 0 0 92px; text-align: center; }
+.row.trim span { color: var(--text-low); }
+.row.trim small { color: var(--text-low); font-size: 12px; margin-left: 4px; }
+.queue { padding: 14px 18px; }
+.queue[hidden] { display: none; }
+.queue .hist-head { margin-bottom: 6px; }
+#queueList { display: flex; flex-direction: column; gap: 6px; max-height: 132px; overflow-y: auto; }
+.qi { font-size: 12.5px; color: var(--text-mid); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.qi span { display: inline-block; font-weight: 800; font-size: 11px; padding: 1px 7px; margin-right: 8px; border-radius: 7px; background: var(--over-2); color: var(--text-hi); }
+body.web #dirRow, body.web #btnOpenDir, body.web #plRow { display: none; }
 </style>
 </head>
 <body class="m-audio">
@@ -220,11 +236,13 @@ body.busy .glass { backdrop-filter: none; -webkit-backdrop-filter: none; }
       <path fill="#fff" d="M21.5 30h5v5h4.2L24 42l-6.7-7h4.2z"/>
     </svg>
     <div><div class="brand-name">YouTube<br>Downloader</div></div>
-    <div class="brand-sub" style="margin:0 0 0 6px; align-self:flex-end; padding-bottom:3px">Звук и видео без лишнего</div>
+    <div class="brand-sub" style="margin:0 0 0 6px; align-self:flex-end; padding-bottom:3px" data-t="tagline"></div>
     <div class="spacer"></div>
+    <button class="upd" id="upd" hidden></button>
+    <div class="theme" id="lang"><button data-lang="ru">RU</button><button data-lang="en">EN</button></div>
     <div class="theme" id="theme">
-      <button data-theme="night"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>Ночное</button>
-      <button data-theme="classic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>Классическое</button>
+      <button data-theme="night"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg><span data-t="night"></span></button>
+      <button data-theme="classic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg><span data-t="classic"></span></button>
     </div>
   </header>
 
@@ -235,43 +253,47 @@ body.busy .glass { backdrop-filter: none; -webkit-backdrop-filter: none; }
         <div class="hero-top">
           <div class="stack"><i class="slab" style="--i:0"></i><i class="slab" style="--i:1"></i><i class="slab" style="--i:2"></i><div class="ground"></div></div>
           <div>
-            <h1 id="heroTitle">Скачайте звук с YouTube</h1>
-            <p id="heroSub">Вставьте ссылку на ролик или плейлист — получите MP3 или MP4 в нужном качестве.</p>
+            <h1 id="heroTitle"></h1>
+            <p id="heroSub"></p>
           </div>
         </div>
         <div class="yt">
           <input class="field" id="url" placeholder="https://youtu.be/…" spellcheck="false" autocomplete="off">
-          <button class="btn btn-glass" id="btnPaste"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="3" width="8" height="4" rx="1.5"/><path d="M16 5h2a2 2 0 0 1 2 2v13a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h2"/></svg>Вставить</button>
+          <button class="btn btn-glass" id="btnPaste"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="3" width="8" height="4" rx="1.5"/><path d="M16 5h2a2 2 0 0 1 2 2v13a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h2"/></svg><span data-t="paste"></span></button>
         </div>
         <div class="hint" id="hint"></div>
       </div>
 
       <div class="modes">
-        <button class="glass mode on" data-mode="audio" style="--c: var(--violet)"><span class="orb gem" style="--c: var(--violet)"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5.5l11-2V16"/><circle cx="6" cy="18" r="3" fill="#fff"/><circle cx="17" cy="16" r="3" fill="#fff"/></svg></span><span><b>Аудио</b><small>MP3 до 320 кбит/с</small></span></button>
-        <button class="glass mode" data-mode="video" style="--c: var(--coral)"><span class="orb gem" style="--c: var(--coral)"><svg viewBox="0 0 24 24" fill="#fff"><rect x="3" y="5" width="18" height="14" rx="3.5"/><path d="m10 9.2 5 2.8-5 2.8z" fill="#7a2410"/></svg></span><span><b>Видео</b><small>MP4 до 1080p и выше</small></span></button>
+        <button class="glass mode on" data-mode="audio" style="--c: var(--violet)"><span class="orb gem" style="--c: var(--violet)"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5.5l11-2V16"/><circle cx="6" cy="18" r="3" fill="#fff"/><circle cx="17" cy="16" r="3" fill="#fff"/></svg></span><span><b data-t="audio"></b><small data-t="audioSub"></small></span></button>
+        <button class="glass mode" data-mode="video" style="--c: var(--coral)"><span class="orb gem" style="--c: var(--coral)"><svg viewBox="0 0 24 24" fill="#fff"><rect x="3" y="5" width="18" height="14" rx="3.5"/><path d="m10 9.2 5 2.8-5 2.8z" fill="#7a2410"/></svg></span><span><b data-t="video"></b><small data-t="videoSub"></small></span></button>
       </div>
 
       <div class="glass set-card">
-        <div><div class="lbl">Качество</div><div class="seg" id="quality"></div></div>
-        <div><div class="lbl">Папка сохранения</div>
-          <div class="row"><input class="field" id="outdir" spellcheck="false"><button class="btn btn-glass btn-sm" id="btnBrowse" style="height:42px">Обзор…</button></div></div>
-        <div class="switch-row" id="plRow"><span>Скачать весь плейлист</span><span class="switch" id="plSwitch"></span></div>
+        <div><div class="lbl" data-t="quality"></div><div class="seg" id="quality"></div></div>
+        <div id="dirRow"><div class="lbl" data-t="folder"></div>
+          <div class="row"><input class="field" id="outdir" spellcheck="false"><button class="btn btn-glass btn-sm" id="btnBrowse" style="height:42px" data-t="browse"></button></div></div>
+        <div><div class="lbl" data-t="trim"></div>
+          <div class="row trim"><input class="field" id="tStart" placeholder="0:00" spellcheck="false"><span>—</span><input class="field" id="tEnd" spellcheck="false"><small data-t="trimHint"></small></div></div>
+        <div class="switch-row" id="subsRow"><span><span data-t="subs"></span><small data-t="subsHint"></small></span><span class="switch" id="subsSwitch"></span></div>
+        <div class="switch-row" id="plRow"><span data-t="playlist"></span><span class="switch" id="plSwitch"></span></div>
       </div>
 
       </div>
-      <button class="btn btn-brand btn-big" id="btnGo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11M7 11l5 5 5-5M5 20h14"/></svg><span id="goText">Скачать MP3</span></button>
+      <button class="btn btn-brand btn-big" id="btnGo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11M7 11l5 5 5-5M5 20h14"/></svg><span id="goText"></span></button>
     </div>
 
     <div class="col">
       <div id="jobBox"></div>
+      <div class="glass queue" id="queueBox" hidden><div class="hist-head"><b id="queueTitle"></b><button class="btn btn-glass btn-sm" id="btnClearQ" data-t="clearQueue"></button></div><div id="queueList"></div></div>
       <div class="glass hist">
-        <div class="hist-head"><b>Недавно скачано</b><span style="display:flex;gap:6px"><button class="btn btn-glass btn-sm" id="btnOpenDir">Открыть папку</button><button class="icon-btn" id="btnClear" title="Очистить список"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg></button></span></div>
+        <div class="hist-head"><b data-t="recent"></b><span style="display:flex;gap:6px"><button class="btn btn-glass btn-sm" id="btnOpenDir"></button><button class="icon-btn" id="btnClear"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg></button></span></div>
         <div class="list" id="list"></div>
       </div>
     </div>
   </div>
 </div>
-<div class="scrim" id="scrim"><div class="glass dialog"><h3>Выйти из программы?</h3><p id="exitText">Окно закроется.</p><div class="row2"><button class="btn btn-glass" id="exitNo">Остаться</button><button class="btn btn-brand" id="exitYes">Выйти</button></div></div></div>
+<div class="scrim" id="scrim"><div class="glass dialog"><h3 data-t="exitQ"></h3><p id="exitText"></p><div class="row2"><button class="btn btn-glass" id="exitNo" data-t="stay"></button><button class="btn btn-brand" id="exitYes" data-t="exit"></button></div></div></div>
 <div class="toasts" id="toasts"></div>
 
 <script>
@@ -282,49 +304,110 @@ const ICON_VIDEO = '<svg viewBox="0 0 24 24" fill="#fff"><rect x="3" y="5" width
 const ICON_OK = '<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg>';
 const ICON_ERR = '<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round"><path d="M12 7v6M12 17h.01"/></svg>';
 
-const S = { mode: "audio", quality: { audio: "320 kbps", video: "Лучшее" }, playlist: false, dirs: {}, lists: {}, running: false, theme: "night" };
+const L = {
+  ru: {
+    tagline: "Звук и видео без лишнего", night: "Ночное", classic: "Классическое", paste: "Вставить",
+    audio: "Аудио", audioSub: "MP3 до 320 кбит/с, обложка и теги", video: "Видео", videoSub: "MP4 до 1080p и выше",
+    quality: "Качество", folder: "Папка сохранения", browse: "Обзор…", trim: "Фрагмент (необязательно)",
+    trimHint: "мин:сек, пусто — целиком", trimEnd: "конец", subs: "Субтитры .srt", subsHint: "русские / английские, если есть",
+    playlist: "Скачать весь плейлист", recent: "Недавно скачано", openDir: "Открыть папку", openFinder: "Открыть в Finder",
+    clearList: "Очистить список", open: "Открыть", showDir: "Показать в папке", download: "Скачать",
+    titleA: "Скачайте звук с YouTube", titleV: "Скачайте видео с YouTube",
+    subA: "Вставьте одну или несколько ссылок — получите MP3 с обложкой и тегами.",
+    subV: "Вставьте одну или несколько ссылок — получите MP4 с изображением и звуком.",
+    goA: "Скачать MP3", goV: "Скачать MP4", addA: "В очередь: MP3", addV: "В очередь: MP4",
+    best: "Лучшее", empty: "Пока пусто", emptySub: "Скачанные файлы появятся здесь — откройте их в один клик.",
+    connect: "Подключение к YouTube…", convert: "Обработка (ffmpeg)…", subsStage: "Субтитры…", dl: "Скачивание…",
+    loading: "Загрузка", cancel: "Отменить", done: "Готово", files: n => `${n} файлов сохранено`, saved: "Файл сохранён",
+    fail: "Не получилось", cancelled: "Отменено", show: "Показать", badUrl: "Вставьте ссылку на видео, она начинается с http…",
+    badTime: "Время пишите как 1:20 или 75", queue: n => `В очереди: ${n}`, clearQueue: "Очистить", added: n => `Добавлено в очередь: ${n}`,
+    subsGot: n => n ? ` · субтитры: ${n}` : " · субтитров нет", mb: "МБ", gb: "ГБ",
+    exitQ: "Выйти из программы?", exitBusy: "Идёт загрузка — она будет прервана.", exitIdle: "Окно закроется.", stay: "Остаться", exit: "Выйти",
+    update: v => `Доступна версия ${v}`, only_youtube: "Принимаются только ссылки на YouTube", rate: "Слишком много загрузок за час, попробуйте позже",
+    server_busy: "Сервер занят, попробуйте через минуту", queue_full: "Очередь заполнена", bad_url: "Неверная ссылка",
+  },
+  en: {
+    tagline: "Audio and video, nothing extra", night: "Night", classic: "Classic", paste: "Paste",
+    audio: "Audio", audioSub: "MP3 up to 320 kbps, cover & tags", video: "Video", videoSub: "MP4 up to 1080p and beyond",
+    quality: "Quality", folder: "Save to", browse: "Browse…", trim: "Clip (optional)",
+    trimHint: "min:sec, empty = whole", trimEnd: "end", subs: "Subtitles .srt", subsHint: "Russian / English when available",
+    playlist: "Download the whole playlist", recent: "Recent downloads", openDir: "Open folder", openFinder: "Show in Finder",
+    clearList: "Clear list", open: "Open", showDir: "Show in folder", download: "Download",
+    titleA: "Download audio from YouTube", titleV: "Download video from YouTube",
+    subA: "Paste one or more links and get MP3 files with cover art and tags.",
+    subV: "Paste one or more links and get MP4 files with picture and sound.",
+    goA: "Download MP3", goV: "Download MP4", addA: "Queue MP3", addV: "Queue MP4",
+    best: "Best", empty: "Nothing yet", emptySub: "Your downloads will show up here — open them in one click.",
+    connect: "Connecting to YouTube…", convert: "Processing (ffmpeg)…", subsStage: "Subtitles…", dl: "Downloading…",
+    loading: "Loading", cancel: "Cancel", done: "Done", files: n => `${n} files saved`, saved: "File saved",
+    fail: "Something went wrong", cancelled: "Cancelled", show: "Show", badUrl: "Paste a video link, it starts with http…",
+    badTime: "Write times like 1:20 or 75", queue: n => `In queue: ${n}`, clearQueue: "Clear", added: n => `Added to queue: ${n}`,
+    subsGot: n => n ? ` · subtitles: ${n}` : " · no subtitles", mb: "MB", gb: "GB",
+    exitQ: "Quit the app?", exitBusy: "A download is running — it will be stopped.", exitIdle: "The window will close.", stay: "Stay", exit: "Quit",
+    update: v => `Version ${v} is available`, only_youtube: "Only YouTube links are accepted", rate: "Too many downloads this hour, try later",
+    server_busy: "The server is busy, try again in a minute", queue_full: "The queue is full", bad_url: "Invalid link",
+  },
+};
+const S = { mode: "audio", quality: { audio: "320 kbps", video: "best" }, playlist: false, subs: false, dirs: {}, lists: {},
+  running: false, theme: "night", lang: "ru", platform: "win", queue: 0 };
 let api = null;
+const t = (k, ...a) => { const v = (L[S.lang] || L.ru)[k]; return typeof v === "function" ? v(...a) : (v ?? k); };
 
-function applyTheme(t) {
-  S.theme = t;
-  document.body.classList.toggle("classic", t === "classic");
-  document.querySelectorAll("#theme button").forEach(b => b.classList.toggle("on", b.dataset.theme === t));
+function applyLang(l) {
+  S.lang = l === "en" ? "en" : "ru";
+  document.documentElement.lang = S.lang;
+  document.querySelectorAll("[data-t]").forEach(el => { el.textContent = t(el.dataset.t); });
+  document.querySelectorAll("#lang button").forEach(b => b.classList.toggle("on", b.dataset.lang === S.lang));
+  $("#btnOpenDir").textContent = S.platform === "mac" ? t("openFinder") : t("openDir");
+  $("#btnClear").title = t("clearList");
+  $("#tEnd").placeholder = t("trimEnd");
+  applyMode(); renderHistory(S.history || []); renderQueue(S.qitems || []);
+}
+function applyTheme(th) {
+  S.theme = th;
+  document.body.classList.toggle("classic", th === "classic");
+  document.querySelectorAll("#theme button").forEach(b => b.classList.toggle("on", b.dataset.theme === th));
+}
+function goLabel() {
+  const v = S.mode === "video";
+  $("#goText").textContent = (S.running || S.queue) ? t(v ? "addV" : "addA") : t(v ? "goV" : "goA");
 }
 function applyMode() {
   const v = S.mode === "video";
   document.body.classList.toggle("m-video", v);
   document.body.classList.toggle("m-audio", !v);
   document.querySelectorAll(".mode").forEach(b => b.classList.toggle("on", b.dataset.mode === S.mode));
-  $("#heroTitle").textContent = v ? "Скачайте видео с YouTube" : "Скачайте звук с YouTube";
-  $("#heroSub").textContent = v ? "Вставьте ссылку на ролик или плейлист — получите MP4 с изображением и звуком." : "Вставьте ссылку на ролик или плейлист — получите MP3 в нужном качестве.";
-  $("#goText").textContent = v ? "Скачать MP4" : "Скачать MP3";
+  $("#heroTitle").textContent = t(v ? "titleV" : "titleA");
+  $("#heroSub").textContent = t(v ? "subV" : "subA");
+  goLabel();
   $("#outdir").value = S.dirs[S.mode] || "";
   const q = $("#quality"); q.innerHTML = "";
   (S.lists[S.mode] || []).forEach(name => {
     const b = document.createElement("button");
-    b.className = "opt" + (S.quality[S.mode] === name ? " on" : ""); b.textContent = name;
+    b.className = "opt" + (S.quality[S.mode] === name ? " on" : ""); b.textContent = name === "best" ? t("best") : name;
     b.onclick = () => { S.quality[S.mode] = name; applyMode(); };
     q.appendChild(b);
   });
 }
 
-function fmtSize(b) { if (!b) return ""; const mb = b / 1048576; return mb >= 1024 ? (mb / 1024).toFixed(1) + " ГБ" : mb.toFixed(mb < 10 ? 1 : 0) + " МБ"; }
+function fmtSize(b) { if (!b) return ""; const mb = b / 1048576; return mb >= 1024 ? (mb / 1024).toFixed(1) + " " + t("gb") : mb.toFixed(mb < 10 ? 1 : 0) + " " + t("mb"); }
 function esc(s) { return String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c])); }
 
 function renderHistory(items) {
+  S.history = items || [];
   const list = $("#list");
-  if (!items || !items.length) {
-    list.innerHTML = '<div class="empty"><div><div class="stack"><i class="slab" style="--i:0"></i><i class="slab" style="--i:1"></i><i class="slab" style="--i:2"></i><div class="ground"></div></div><b>Пока пусто</b>Скачанные файлы появятся здесь — откройте их в один клик.</div></div>';
+  if (!S.history.length) {
+    list.innerHTML = `<div class="empty"><div><div class="stack"><i class="slab" style="--i:0"></i><i class="slab" style="--i:1"></i><i class="slab" style="--i:2"></i><div class="ground"></div></div><b>${esc(t("empty"))}</b>${esc(t("emptySub"))}</div></div>`;
     return;
   }
   list.innerHTML = "";
-  items.forEach(h => {
+  S.history.forEach(h => {
     const v = h.mode === "video";
     const el = document.createElement("div"); el.className = "item";
     el.innerHTML = `<span class="orb gem" style="--c: var(--${v ? "coral" : "violet"})">${v ? ICON_VIDEO : ICON_AUDIO}</span>
       <div class="item-t"><b>${esc(h.title)}</b><small>${v ? "MP4" : "MP3"}${h.size ? " · " + fmtSize(h.size) : ""}</small></div>
-      <button class="icon-btn" data-a="open" title="Открыть"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m8 5 11 7-11 7z"/></svg></button>
-      <button class="icon-btn" data-a="dir" title="Показать в папке"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg></button>`;
+      <button class="icon-btn" data-a="open" title="${esc(t("open"))}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m8 5 11 7-11 7z"/></svg></button>
+      <button class="icon-btn" data-a="dir" title="${esc(t("showDir"))}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg></button>`;
     el.querySelector('[data-a="open"]').onclick = () => api.open_file(h.path);
     el.querySelector('[data-a="dir"]').onclick = () => api.reveal(h.path);
     el.querySelector(".item-t").onclick = () => api.open_file(h.path);
@@ -332,11 +415,25 @@ function renderHistory(items) {
   });
 }
 
+function renderQueue(items) {
+  S.qitems = items || []; S.queue = S.qitems.length;
+  const box = $("#queueBox");
+  box.hidden = !S.queue;
+  if (!S.queue) { goLabel(); return; }
+  $("#queueTitle").textContent = t("queue", S.queue);
+  const sig = JSON.stringify(S.qitems);
+  if (box.dataset.sig !== sig) {
+    box.dataset.sig = sig;
+    $("#queueList").innerHTML = S.qitems.map(q => `<div class="qi"><span>${q.mode === "video" ? "MP4" : "MP3"}</span>${esc(q.url)}</div>`).join("");
+  }
+  goLabel();
+}
+
 function toast(kind, title, sub) {
-  const t = document.createElement("div"); t.className = "toast";
-  t.innerHTML = `<span class="orb" style="--c: var(--${kind === "ok" ? "mint" : "red"})">${kind === "ok" ? ICON_OK : ICON_ERR}</span><div><b>${esc(title)}</b><small>${esc(sub || "")}</small></div>`;
-  $("#toasts").appendChild(t);
-  setTimeout(() => { t.classList.add("out"); setTimeout(() => t.remove(), 320); }, 5200);
+  const el = document.createElement("div"); el.className = "toast";
+  el.innerHTML = `<span class="orb" style="--c: var(--${kind === "ok" ? "mint" : "red"})">${kind === "ok" ? ICON_OK : ICON_ERR}</span><div><b>${esc(title)}</b><small>${esc(sub || "")}</small></div>`;
+  $("#toasts").appendChild(el);
+  setTimeout(() => { el.classList.add("out"); setTimeout(() => el.remove(), 320); }, 5200);
 }
 
 function ring(p, spin) {
@@ -350,70 +447,94 @@ function ring(p, spin) {
 function setRunning(r) {
   S.running = r;
   document.body.classList.toggle("busy", r);
-  $("#btnGo").disabled = r;
+  goLabel();
 }
 
 function renderJob(j) {
   const box = $("#jobBox");
-  if (j.state === "running") {
-    const spin = j.stage === "connect" || j.stage === "convert";
-    const stage = j.stage === "connect" ? "Подключение к YouTube…" :
-      j.stage === "convert" ? "Обработка (ffmpeg)…" : `Скачивание… ${Math.round((j.pct || 0) * 100)}%${j.detail ? " · " + j.detail : ""}`;
-    const live = box.querySelector(".job.live");
-    if (live && live.dataset.spin === String(spin)) {
-      // update in place: rebuilding the card every poll restarts animations and makes the text flicker
-      const name = esc(j.title || "Загрузка");
-      const nm = live.querySelector(".job-name"); if (nm.innerHTML !== name) nm.innerHTML = name;
-      const st = live.querySelector(".job-stage"); if (st.innerHTML !== stage) st.innerHTML = stage;
-      live.querySelector(".bar i").style.width = Math.round((j.pct || 0) * 100) + "%";
-      if (!spin) {
-        const C = 2 * Math.PI * 28, circles = live.querySelectorAll(".ring circle");
-        circles[1].setAttribute("stroke-dashoffset", C * (1 - Math.min(1, Math.max(0, j.pct || 0))));
-        const pc = live.querySelector(".pct"); if (pc) pc.textContent = Math.round((j.pct || 0) * 100);
-      }
-      return;
+  const spin = j.stage === "connect" || j.stage === "convert" || j.stage === "subs";
+  const pct = Math.round((j.pct || 0) * 100);
+  const stage = j.stage === "connect" ? t("connect") : j.stage === "convert" ? t("convert") : j.stage === "subs" ? t("subsStage")
+    : `${t("dl")} ${pct}%${j.detail ? " · " + j.detail : ""}`;
+  const name = esc(j.title || t("loading"));
+  const live = box.querySelector(".job.live");
+  if (live && live.dataset.spin === String(spin)) {
+    // update in place: rebuilding the card every poll restarts animations and makes the text flicker
+    const nm = live.querySelector(".job-name"); if (nm.innerHTML !== name) nm.innerHTML = name;
+    const st = live.querySelector(".job-stage"); if (st.textContent !== stage) st.textContent = stage;
+    live.querySelector(".bar i").style.width = pct + "%";
+    if (!spin) {
+      const C = 2 * Math.PI * 28, circles = live.querySelectorAll(".ring circle");
+      circles[1].setAttribute("stroke-dashoffset", C * (1 - Math.min(1, Math.max(0, j.pct || 0))));
+      const pc = live.querySelector(".pct"); if (pc) pc.textContent = pct;
     }
-    box.innerHTML = `<div class="glass job live" data-spin="${spin}">${ring(j.pct || 0, spin)}<div class="job-info"><div class="job-name">${esc(j.title || "Загрузка")}</div><div class="job-stage">${stage}</div><div class="bar"><i style="width:${Math.round((j.pct || 0) * 100)}%"></i></div></div><button class="btn btn-glass btn-sm" id="btnCancel">Отменить</button></div>`;
-    $("#btnCancel").onclick = () => api.cancel();
+    return;
+  }
+  box.innerHTML = `<div class="glass job live" data-spin="${spin}">${ring(j.pct || 0, spin)}<div class="job-info"><div class="job-name">${name}</div><div class="job-stage">${esc(stage)}</div><div class="bar"><i style="width:${pct}%"></i></div></div><button class="btn btn-glass btn-sm" id="btnCancel">${esc(t("cancel"))}</button></div>`;
+  $("#btnCancel").onclick = () => api.cancel();
+}
+
+function showResult(e) {
+  const box = $("#jobBox");
+  if (e.state === "done") {
+    const n = e.count || 1;
+    const sub = (n > 1 ? t("files", n) : (e.title || t("saved"))) + (e.subs == null ? "" : t("subsGot", e.subs));
+    box.innerHTML = `<div class="glass job ok"><span class="orb" style="--c: var(--mint); width:56px;height:56px">${ICON_OK}</span><div class="job-info"><div class="job-name">${esc(t("done"))}</div><div class="job-stage">${esc(sub)}</div></div><button class="btn btn-glass btn-sm" id="btnShow">${esc(t("show"))}</button></div>`;
+    $("#btnShow").onclick = () => api.reveal(e.path);
+    if (e.history) renderHistory(e.history);
+    toast("ok", t("done"), e.title || "");
+  } else if (e.state === "error") {
+    box.innerHTML = `<div class="glass job err"><span class="orb" style="--c: var(--red); width:56px;height:56px">${ICON_ERR}</span><div class="job-info"><div class="job-name">${esc(t("fail"))}</div><div class="job-stage" style="user-select:text">${esc(t(e.error || ""))}</div></div></div>`;
+    toast("err", t("fail"), e.url || "");
+  } else if (e.state === "cancelled") {
+    box.innerHTML = "";
+    toast("err", t("cancelled"), "");
   }
 }
 
 async function poll() {
   if (!api) return;
-  let j; try { j = await api.poll(); } catch (e) { return; }
-  if (j.state === "running") { if (!S.running) setRunning(true); renderJob(j); return; }
-  if (j.state === "idle") return;
-  setRunning(false);
-  const box = $("#jobBox");
-  if (j.state === "done") {
-    const n = j.count || 1;
-    box.innerHTML = `<div class="glass job ok"><span class="orb" style="--c: var(--mint); width:56px;height:56px">${ICON_OK}</span><div class="job-info"><div class="job-name">Готово</div><div class="job-stage">${esc(n > 1 ? n + " файлов сохранено" : (j.title || "Файл сохранён"))}</div></div><button class="btn btn-glass btn-sm" id="btnShow">Показать</button></div>`;
-    $("#btnShow").onclick = () => api.reveal(j.path);
-    renderHistory(j.history);
-    toast("ok", "Готово", j.title || "");
-  } else if (j.state === "error") {
-    box.innerHTML = `<div class="glass job err"><span class="orb" style="--c: var(--red); width:56px;height:56px">${ICON_ERR}</span><div class="job-info"><div class="job-name">Не получилось</div><div class="job-stage" style="user-select:text">${esc(j.error || "")}</div></div></div>`;
-  } else if (j.state === "cancelled") {
-    box.innerHTML = "";
-    toast("err", "Отменено", "");
+  let r; try { r = await api.poll(); } catch (e) { return; }
+  (r.events || []).forEach(showResult);
+  renderQueue(r.queue || []);
+  const j = r.job || {};
+  if (j.state === "running") { if (!S.running) setRunning(true); renderJob(j); }
+  else if (S.running) {
+    setRunning(false);
+    const live = $("#jobBox .job.live"); if (live) live.remove();
   }
 }
 
+function okTime(v) { return !v.trim() || /^\d+(:\d{1,2}){0,2}([.,]\d+)?$/.test(v.trim()); }
+function splitUrls(text) { return (String(text).match(/https?:\/\/.+?(?=https?:\/\/|\s|$)/gi) || []); }
+
 async function go() {
-  if (S.running) return;
-  const url = $("#url").value.trim();
-  if (!/^https?:\/\//i.test(url)) {
+  const urls = splitUrls($("#url").value);
+  if (!urls.length) {
     const f = $("#url"); f.classList.remove("bad"); void f.offsetWidth; f.classList.add("bad"); f.focus();
-    $("#hint").textContent = "Вставьте ссылку на видео, она начинается с http…"; return;
+    $("#hint").textContent = t("badUrl"); return;
   }
+  const a = $("#tStart").value, b = $("#tEnd").value;
+  if (!okTime(a) || !okTime(b)) { $("#hint").textContent = t("badTime"); return; }
   $("#hint").textContent = "";
-  const r = await api.start(url, S.mode, S.quality[S.mode], S.playlist, $("#outdir").value);
-  if (!r.ok) {
-    $("#jobBox").innerHTML = `<div class="glass job err"><span class="orb" style="--c: var(--red); width:56px;height:56px">${ICON_ERR}</span><div class="job-info"><div class="job-name">Не получилось</div><div class="job-stage">${esc(r.error)}</div></div></div>`;
-    return;
+  const extra = { start: a.trim(), end: b.trim(), subs: S.subs };
+  let added = 0, err = "";
+  for (const u of urls) {
+    const r = await api.start(u, S.mode, S.quality[S.mode], S.playlist, $("#outdir").value, extra);
+    if (r.ok) added++; else err = r.error;
   }
-  setRunning(true);
-  renderJob({ state: "running", stage: "connect", pct: 0 });
+  if (err && !added) { showResult({ state: "error", error: err }); return; }
+  $("#url").value = ""; $("#tStart").value = ""; $("#tEnd").value = "";
+  if (S.running || added > 1) toast("ok", t("added", added), "");
+  if (!S.running) { setRunning(true); renderJob({ state: "running", stage: "connect", pct: 0 }); }
+}
+
+async function checkUpdate(tries) {
+  if (!api.check_update) return;
+  let u; try { u = await api.check_update(); } catch (e) { return; }
+  if (u && u.version) {
+    const b = $("#upd"); b.hidden = false; b.textContent = t("update", u.version); b.onclick = () => api.open_url(u.url);
+  } else if (tries > 0) setTimeout(() => checkUpdate(tries - 1), 4000);
 }
 
 async function init() {
@@ -421,34 +542,44 @@ async function init() {
   const st = await api.get_state();
   S.dirs = st.dirs; S.lists = { audio: st.audio_q, video: st.video_q };
   S.quality = { audio: st.audio_q[0], video: st.video_q[0] };
-  S.mode = st.mode || "audio";
-  if (st.platform === "mac") { $("#btnOpenDir").textContent = "Открыть в Finder"; document.body.classList.add("mac"); }
-  applyTheme(st.theme); applyMode(); renderHistory(st.history);
+  S.mode = st.mode || "audio"; S.platform = st.platform; S.subs = !!st.subs;
+  if (st.platform === "mac") document.body.classList.add("mac");
+  if (st.platform === "web") document.body.classList.add("web");
+  $("#subsSwitch").classList.toggle("on", S.subs);
+  S.history = st.history;
+  applyTheme(st.theme);
+  applyLang(st.lang || ((navigator.language || "ru").toLowerCase().startsWith("ru") ? "ru" : "en"));
   document.querySelectorAll("#theme button").forEach(b => b.onclick = () => { applyTheme(b.dataset.theme); api.set_theme(b.dataset.theme); });
+  document.querySelectorAll("#lang button").forEach(b => b.onclick = () => { applyLang(b.dataset.lang); api.set_lang && api.set_lang(b.dataset.lang); });
   document.querySelectorAll(".mode").forEach(b => b.onclick = () => {
     S.dirs[S.mode] = $("#outdir").value; S.mode = b.dataset.mode; applyMode(); api.set_mode(S.mode);
   });
   $("#plRow").onclick = () => { S.playlist = !S.playlist; $("#plSwitch").classList.toggle("on", S.playlist); };
-  $("#btnPaste").onclick = async () => { const t = await api.paste(); if (t) { $("#url").value = t; $("#hint").textContent = ""; } };
+  $("#subsRow").onclick = () => { S.subs = !S.subs; $("#subsSwitch").classList.toggle("on", S.subs); api.set_subs && api.set_subs(S.subs); };
+  $("#btnPaste").onclick = async () => { const x = await api.paste(); if (x) { $("#url").value = splitUrls(x).join(" ") || x; $("#hint").textContent = ""; } };
   $("#btnBrowse").onclick = async () => { const d = await api.pick_folder($("#outdir").value); if (d) { $("#outdir").value = d; S.dirs[S.mode] = d; } };
   $("#btnOpenDir").onclick = () => api.open_folder($("#outdir").value);
   $("#btnClear").onclick = async () => { await api.clear_history(); renderHistory([]); };
+  $("#btnClearQ").onclick = () => api.clear_queue();
   $("#btnGo").onclick = go;
   $("#url").addEventListener("keydown", e => { if (e.key === "Enter") go(); });
   $("#url").focus();
   setInterval(poll, 350);
+  checkUpdate(5);
 }
 // Called by the Chrome extension bridge (local server in yt_downloader.py).
 window.extDownload = (url, mode) => {
-  if (S.running || !api) return "busy";
+  if (!api) return "busy";
   mode = mode === "video" ? "video" : "audio";
   if (mode !== S.mode) { S.dirs[S.mode] = $("#outdir").value; S.mode = mode; applyMode(); api.set_mode(mode); }
-  S.playlist = false; $("#plSwitch").classList.remove("on");
-  $("#url").value = url; go();
+  api.start(url, mode, S.quality[mode], false, $("#outdir").value, { subs: S.subs }).then(r => {
+    if (r.ok && !S.running) { setRunning(true); renderJob({ state: "running", stage: "connect", pct: 0 }); }
+    else if (r.ok) toast("ok", t("added", 1), url);
+  });
   return "ok";
 };
 window.askExit = () => {
-  $("#exitText").textContent = S.running ? "Идёт загрузка — она будет прервана." : "Окно закроется.";
+  $("#exitText").textContent = (S.running || S.queue) ? t("exitBusy") : t("exitIdle");
   $("#scrim").classList.add("show");
 };
 document.addEventListener("DOMContentLoaded", () => {

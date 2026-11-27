@@ -1,5 +1,5 @@
 ﻿#define MyAppName "YouTube Downloader"
-#define MyAppVersion "3.0.0"
+#define MyAppVersion "3.1.0"
 #define MyAppExeName "YouTube Downloader.exe"
 
 [Setup]

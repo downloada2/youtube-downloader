@@ -16,7 +16,7 @@ echo "== Creating virtual environment (.venv) =="
 python3 -m venv .venv
 source .venv/bin/activate
 pip install --upgrade pip
-pip install yt-dlp imageio-ffmpeg pyinstaller pywebview
+pip install yt-dlp imageio-ffmpeg pyinstaller pywebview mutagen
 
 echo "== Building $NAME.app =="
 pyinstaller --noconfirm --clean --windowed --name "$NAME" \

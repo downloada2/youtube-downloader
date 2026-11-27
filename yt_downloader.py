@@ -9,6 +9,7 @@ import json
 import os
 import platform
 import re
+import shutil
 import subprocess
 import sys
 import threading
@@ -27,15 +28,62 @@ if sys.stdout is None or sys.stderr is None:
     sys.stdout = sys.stdout or _f
     sys.stderr = sys.stderr or _f
 
-import yt_dlp
+ENGINE_DIR = APP_HOME / "engine"
+
+
+def _load_engine():
+    """Use a newer yt-dlp downloaded by the auto-updater (APP_HOME/engine) instead of the bundled one."""
+    import importlib.abc
+    import zipimport
+    try:
+        cur = (ENGINE_DIR / "current.txt").read_text(encoding="utf-8").strip()
+        zp = ENGINE_DIR / cur
+        if "--bundled-engine" in sys.argv or not cur or not zp.is_file():
+            raise OSError
+    except OSError:
+        import yt_dlp as m
+        return m
+
+    class _ZipFirst(importlib.abc.MetaPathFinder):
+        def find_spec(self, name, path=None, target=None):
+            if name != "yt_dlp" and not name.startswith("yt_dlp."):
+                return None
+            sub = "/".join(name.split(".")[:-1])
+            try:
+                return zipimport.zipimporter(str(zp) + ("/" + sub + "/" if sub else "")).find_spec(name)
+            except Exception:  # noqa: BLE001
+                return None
+
+    finder = _ZipFirst()
+    sys.meta_path.insert(0, finder)
+    try:
+        import yt_dlp as m
+        import yt_dlp.postprocessor  # noqa: F401 - prove the archive is complete
+        return m
+    except Exception:  # noqa: BLE001 - broken download: fall back to the bundled engine
+        sys.meta_path.remove(finder)
+        for k in [k for k in sys.modules if k == "yt_dlp" or k.startswith("yt_dlp.")]:
+            del sys.modules[k]
+        try:
+            (ENGINE_DIR / "current.txt").unlink()
+        except OSError:
+            pass
+        import yt_dlp as m
+        return m
+
+
+yt_dlp = _load_engine()
+import yt_dlp.utils  # noqa: E402
+from yt_dlp.postprocessor.metadataparser import MetadataParserPP  # noqa: E402
 
 ROOT = Path(getattr(sys, "_MEIPASS", Path(__file__).parent))
 IS_WIN = platform.system() == "Windows"
 IS_MAC = platform.system() == "Darwin"
 TITLE = "YouTube Downloader"
-VERSION = "3.0"
+VERSION = "3.1.0"
+REPO = "downloada2/youtube-downloader"
 AUDIO_Q = ["320 kbps", "192 kbps", "128 kbps"]
-VIDEO_Q = ["Лучшее", "1080p", "720p", "480p", "360p"]
+VIDEO_Q = ["best", "1080p", "720p", "480p", "360p"]
 ANSI = re.compile(r"\x1b\[[0-9;]*m")
 
 
@@ -51,7 +99,40 @@ def default_dir(video: bool) -> Path:
     return p if p.exists() else Path.home() / "Downloads"
 
 
-def build_opts(video: bool, quality: str, outdir: Path, playlist: bool, hook) -> dict:
+def parse_time(t):
+    """'1:20' / '01:02:03' / '75' -> seconds, '' -> None."""
+    t = (t or "").strip()
+    if not t:
+        return None
+    sec = 0.0
+    for part in t.replace(",", ".").split(":"):
+        sec = sec * 60 + float(part)
+    return sec
+
+
+def subs_opts(outdir: Path) -> dict:
+    """Separate, best-effort pass: subtitles must never break the actual download (YouTube often answers 429)."""
+    return {
+        "outtmpl": str(outdir / "%(title).150s.%(ext)s"), "noplaylist": True, "quiet": True, "no_warnings": True,
+        "noprogress": True, "windowsfilenames": True, "ffmpeg_location": ffmpeg_location(), "skip_download": True,
+        "ignoreerrors": True, "writesubtitles": True, "writeautomaticsub": True,
+        "subtitleslangs": ["ru", "en", r".*-orig"], "subtitlesformat": "srt/vtt/best",
+        "postprocessors": [{"key": "FFmpegSubtitlesConvertor", "format": "srt", "when": "before_dl"}],
+    }
+
+
+def fetch_subs(url, outdir: Path) -> int:
+    before = set(outdir.glob("*.srt"))
+    try:
+        with yt_dlp.YoutubeDL(subs_opts(outdir)) as y:
+            y.extract_info(url, download=True)
+    except Exception:  # noqa: BLE001
+        pass
+    return len(set(outdir.glob("*.srt")) - before)
+
+
+def build_opts(video: bool, quality: str, outdir: Path, playlist: bool, hook, extra=None) -> dict:
+    extra = extra or {}
     o = {
         "outtmpl": str(outdir / "%(title).150s.%(ext)s"),
         "noplaylist": not playlist,
@@ -61,7 +142,9 @@ def build_opts(video: bool, quality: str, outdir: Path, playlist: bool, hook) ->
         "progress_hooks": [hook],
         "windowsfilenames": True,
         "ffmpeg_location": ffmpeg_location(),
+        "writethumbnail": True,
     }
+    pps = [{"key": "FFmpegThumbnailsConvertor", "format": "jpg", "when": "before_dl"}]
     if video:
         h = quality.rstrip("p")
         cap = f"[height<={h}]" if h.isdigit() else ""
@@ -69,11 +152,20 @@ def build_opts(video: bool, quality: str, outdir: Path, playlist: bool, hook) ->
         o["merge_output_format"] = "mp4"
     else:
         o["format"] = "bestaudio/best"
-        o["postprocessors"] = [
-            {"key": "FFmpegExtractAudio", "preferredcodec": "mp3",
-             "preferredquality": quality.split()[0]},
-            {"key": "FFmpegMetadata"},
-        ]
+        pps.append({"key": "FFmpegExtractAudio", "preferredcodec": "mp3",
+                    "preferredquality": quality.split()[0]})
+    # "Artist - Song" titles -> proper artist/title tags; otherwise the channel name is the artist.
+    pps.append({"key": "MetadataParser", "when": "post_process",
+                "actions": [(MetadataParserPP.interpretter, "title",
+                             r"^(?P<artist>[^-\u2013\u2014]+?) [-\u2013\u2014] (?P<title>.+)$")]})
+    pps.append({"key": "FFmpegMetadata", "add_metadata": True})
+    pps.append({"key": "EmbedThumbnail", "already_have_thumbnail": False})
+    a, b = parse_time(extra.get("start")), parse_time(extra.get("end"))
+    if a is not None or b is not None:
+        o["download_ranges"] = yt_dlp.utils.download_range_func(None, [(a or 0, b if b is not None else float("inf"))])
+        o["force_keyframes_at_cuts"] = True
+        o["outtmpl"] = str(outdir / "%(title).140s (%(section_start)d-%(section_end)d).%(ext)s")
+    o["postprocessors"] = pps
     return o
 
 
@@ -127,10 +219,17 @@ class Api:
             self._cfg = json.loads(self._cfg_path.read_text(encoding="utf-8"))
         except (OSError, ValueError):
             pass
-        self._job = {"state": "idle"}
-        self._cancel = False
         self._history = list(self._cfg.get("history", []))
         self._exit_ok = False
+        self._init_jobs()
+        self._update = None
+
+    def _init_jobs(self):
+        self._job = {"state": "idle"}
+        self._cancel = False
+        self._queue = []
+        self._events = []
+        self._worker = None
 
     # ---- config
     def _save(self):
@@ -150,13 +249,44 @@ class Api:
                 "video": self._cfg.get("dir_video") or str(default_dir(True)),
             },
             "history": [h for h in self._history if Path(h["path"]).exists()],
-            "version": VERSION, "platform": "mac" if IS_MAC else "win",
+            "version": VERSION, "platform": "mac" if IS_MAC else "win", "lang": self._cfg.get("lang", ""),
+            "subs": bool(self._cfg.get("subs")), "engine": yt_dlp.version.__version__,
             "audio_q": AUDIO_Q, "video_q": VIDEO_Q,
         }
 
     def set_theme(self, theme):
         self._cfg["theme"] = "classic" if theme == "classic" else "night"
         self._save()
+
+    def set_lang(self, lang):
+        self._cfg["lang"] = "en" if lang == "en" else "ru"
+        self._save()
+
+    def set_subs(self, on):
+        self._cfg["subs"] = bool(on)
+        self._save()
+
+    def check_update(self):
+        """Newer release of this app on GitHub -> {"version", "url"}; also refreshes yt-dlp in the background."""
+        if self._update is None:
+            self._update = {}
+            threading.Thread(target=self._bg_updates, daemon=True).start()
+        return self._update
+
+    def _bg_updates(self):
+        try:
+            rel = _gh_json(f"https://api.github.com/repos/{REPO}/releases/latest")
+            tag = (rel.get("tag_name") or "").lstrip("v")
+            if _vtuple(tag) > _vtuple(VERSION):
+                self._update = {"version": tag, "url": rel.get("html_url") or f"https://github.com/{REPO}/releases/latest"}
+        except Exception:  # noqa: BLE001 - offline, rate limit: just skip
+            pass
+        update_engine()
+
+    def open_url(self, url):
+        if str(url).startswith("https://github.com/"):
+            import webbrowser
+            webbrowser.open(url)
 
     def set_mode(self, mode):
         self._cfg["mode"] = "video" if mode == "video" else "audio"
@@ -206,41 +336,61 @@ class Api:
         self._exit_ok = True
         self._window.destroy()
 
-    # ---- download
-    def start(self, url, mode, quality, playlist, outdir):
+    # ---- download queue
+    def start(self, url, mode, quality, playlist, outdir, extra=None):
         url = (url or "").strip()
         if not url.startswith("http"):
             return {"ok": False, "error": "bad_url"}
+        video = mode == "video"
+        out = Path(outdir)
+        try:
+            out.mkdir(parents=True, exist_ok=True)
+        except OSError as ex:
+            return {"ok": False, "error": f"folder: {ex}"}
+        self._cfg["dir_video" if video else "dir_audio"] = str(out)
+        self._save()
+        item = {"url": url, "video": video, "quality": quality, "playlist": bool(playlist), "out": out,
+                "extra": dict(extra or {})}
         with self._lock:
-            if self._job.get("state") == "running":
-                return {"ok": False, "error": "busy"}
-            video = mode == "video"
-            out = Path(outdir)
-            try:
-                out.mkdir(parents=True, exist_ok=True)
-            except OSError as ex:
-                return {"ok": False, "error": f"Папка недоступна: {ex}"}
-            self._cfg["dir_video" if video else "dir_audio"] = str(out)
-            self._save()
-            self._cancel = False
-            self._job = {"state": "running", "pct": 0.0, "stage": "connect", "detail": "",
-                         "title": "", "mode": mode, "started": time.time()}
-        threading.Thread(target=self._work, args=(url, out, video, quality, bool(playlist)), daemon=True).start()
-        return {"ok": True}
+            self._queue.append(item)
+            if not (self._worker and self._worker.is_alive()):
+                self._worker = threading.Thread(target=self._run_queue, daemon=True)
+                self._worker.start()
+            n = len(self._queue)
+        return {"ok": True, "queued": n}
 
     def cancel(self):
         self._cancel = True
 
+    def clear_queue(self):
+        with self._lock:
+            self._queue.clear()
+
     def poll(self):
-        j = dict(self._job)
-        if j.get("state") != "running":
-            self._job = {"state": "idle"} if j.get("state") in ("done", "error", "cancelled") else self._job
-        return j
+        with self._lock:
+            ev, self._events = self._events, []
+            q = [{"url": i["url"], "mode": "video" if i["video"] else "audio"} for i in self._queue]
+            return {"job": dict(self._job), "queue": q, "events": ev}
 
     def _set(self, **kw):
         self._job.update(kw)
 
-    def _work(self, url, outdir, video, quality, playlist):
+    def _run_queue(self):
+        while True:
+            with self._lock:
+                if not self._queue:
+                    self._job = {"state": "idle"}
+                    self._worker = None
+                    return
+                it = self._queue.pop(0)
+                self._cancel = False
+                self._job = {"state": "running", "pct": 0.0, "stage": "connect", "detail": "", "title": "",
+                             "mode": "video" if it["video"] else "audio", "started": time.time()}
+            ev = self._work(it["url"], it["out"], it["video"], it["quality"], it["playlist"], it["extra"])
+            with self._lock:
+                self._events.append(ev)
+
+    def _work(self, url, outdir, video, quality, playlist, extra=None):
         def hook(d):
             if self._cancel:
                 raise yt_dlp.utils.DownloadCancelled()
@@ -250,29 +400,75 @@ class Api:
                 tot = d.get("total_bytes") or d.get("total_bytes_estimate") or 0
                 p = (d["downloaded_bytes"] / tot) if tot else 0.0
                 self._set(pct=((idx - 1) + p) / n, stage="download", title=info.get("title") or self._job.get("title", ""),
-                          detail=(f"{idx} из {n}" if n > 1 else ""), speed=d.get("speed") or 0, eta=d.get("eta"))
+                          detail=(f"{idx}/{n}" if n > 1 else ""), speed=d.get("speed") or 0, eta=d.get("eta"))
             elif d["status"] == "finished":
                 self._set(stage="convert", pct=idx / n, title=info.get("title") or self._job.get("title", ""))
 
+        mode = "video" if video else "audio"
         try:
-            with yt_dlp.YoutubeDL(build_opts(video, quality, outdir, playlist, hook)) as y:
+            with yt_dlp.YoutubeDL(build_opts(video, quality, outdir, playlist, hook, extra)) as y:
                 info = y.extract_info(url, download=True)
             got = [(t, p) for t, p in _entries(info) if p]
+            subs = None
+            if (extra or {}).get("subs") and not playlist:
+                self._set(stage="subs")
+                subs = fetch_subs(url, outdir)
             for t, p in got:
-                self._history.insert(0, {"title": t or Path(p).stem, "path": p, "mode": "video" if video else "audio",
+                self._history.insert(0, {"title": t or Path(p).stem, "path": p, "mode": mode,
                                          "size": Path(p).stat().st_size if Path(p).exists() else 0, "ts": int(time.time())})
             self._save()
-            self._job = {"state": "done", "count": len(got), "title": got[0][0] if got else "",
-                         "path": got[0][1] if got else str(outdir), "mode": "video" if video else "audio",
-                         "history": [h for h in self._history if Path(h["path"]).exists()]}
+            return {"state": "done", "count": len(got), "title": got[0][0] if got else "",
+                    "path": got[0][1] if got else str(outdir), "mode": mode, "subs": subs, "history": self.history()}
         except yt_dlp.utils.DownloadCancelled:
-            self._job = {"state": "cancelled"}
+            return {"state": "cancelled"}
         except Exception as ex:  # noqa: BLE001 - shown to the user
             if self._cancel:
-                self._job = {"state": "cancelled"}
-            else:
-                msg = ANSI.sub("", str(ex)).replace("ERROR: ", "").strip()
-                self._job = {"state": "error", "error": msg[:400]}
+                return {"state": "cancelled"}
+            msg = ANSI.sub("", str(ex)).replace("ERROR: ", "").strip()
+            return {"state": "error", "error": msg[:400], "url": url}
+
+    def history(self):
+        return [h for h in self._history if Path(h["path"]).exists()]
+
+
+def _vtuple(v):
+    return tuple(int(x) for x in re.findall(r"\d+", v or "")[:4])
+
+
+def _gh_json(url):
+    import urllib.request
+    req = urllib.request.Request(url, headers={"Accept": "application/vnd.github+json", "User-Agent": "ytdl-app"})
+    with urllib.request.urlopen(req, timeout=15) as r:
+        return json.loads(r.read().decode("utf-8"))
+
+
+def update_engine():
+    """Download the newest yt-dlp (pure-Python zipapp) into APP_HOME/engine; used from the next start."""
+    import urllib.request
+    import zipfile
+    try:
+        rel = _gh_json("https://api.github.com/repos/yt-dlp/yt-dlp/releases/latest")
+        tag = rel.get("tag_name") or ""
+        if _vtuple(tag) <= _vtuple(yt_dlp.version.__version__):
+            return
+        asset = next((x for x in rel.get("assets", []) if x.get("name") == "yt-dlp"), None)
+        if not asset:
+            return
+        ENGINE_DIR.mkdir(parents=True, exist_ok=True)
+        name = f"yt-dlp-{tag}.zip"
+        tmp = ENGINE_DIR / (name + ".part")
+        with urllib.request.urlopen(asset["browser_download_url"], timeout=90) as r, open(tmp, "wb") as f:
+            shutil.copyfileobj(r, f)
+        with zipfile.ZipFile(tmp) as z:
+            if "yt_dlp/__init__.py" not in z.namelist() or z.testzip() is not None:
+                raise ValueError("bad archive")
+        tmp.replace(ENGINE_DIR / name)
+        (ENGINE_DIR / "current.txt").write_text(name, encoding="utf-8")
+        for old in ENGINE_DIR.glob("yt-dlp-*.zip"):
+            if old.name != name:
+                old.unlink(missing_ok=True)
+    except Exception:  # noqa: BLE001
+        pass
 
 
 BRIDGE_PORT = 47653
@@ -323,8 +519,6 @@ def start_bridge(api):
             host = (urlparse(url).hostname or "").lower()
             if not (host == "youtu.be" or host == "youtube.com" or host.endswith(".youtube.com")):
                 return self._send(400, {"ok": False, "error": "bad_url"})
-            if self._busy():
-                return self._send(200, {"ok": False, "error": "busy"})
             mode = "video" if data.get("mode") == "video" else "audio"
             try:
                 api._window.evaluate_js(f"window.extDownload({json.dumps(url)}, {json.dumps(mode)})")
@@ -347,14 +541,21 @@ def _selftest_ffmpeg():
 
 
 def _selftest():
+    """--selftest <url> [--video] [--subs] [--trim 0:05-0:15] -> files in %TEMP%/ytdl_selftest + selftest.ok"""
     url = sys.argv[sys.argv.index("--selftest") + 1]
     video = "--video" in sys.argv
+    extra = {"subs": "--subs" in sys.argv}
+    if "--trim" in sys.argv:
+        extra["start"], extra["end"] = sys.argv[sys.argv.index("--trim") + 1].split("-")
     out = Path(os.environ.get("TEMP", "/tmp")) / "ytdl_selftest"
     out.mkdir(exist_ok=True)
     with yt_dlp.YoutubeDL(build_opts(video, (VIDEO_Q if video else AUDIO_Q)[-1], out, False,
-                                     lambda d: None)) as y:
+                                     lambda d: None, extra)) as y:
         y.extract_info(url, download=True)
-    (out / "selftest.ok").write_text("OK " + ",".join(p.name for p in out.iterdir()), encoding="utf-8")
+    if extra["subs"]:
+        fetch_subs(url, out)
+    (out / "selftest.ok").write_text("OK " + yt_dlp.version.__version__ + " " + ",".join(p.name for p in out.iterdir()),
+                                     encoding="utf-8")
 
 
 def main():
